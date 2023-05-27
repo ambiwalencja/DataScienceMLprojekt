@@ -32,14 +32,20 @@ from sklearn.model_selection import GridSearchCV
 # global variables
 scaler = StandardScaler()
 skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
+results = pd.DataFrame()
+
+
+def compare_results(method, auroc_mean):
+    temp_results = pd.DataFrame({'Method': [method], 'ROC AUC score': round(auroc_mean, 3)}, index=['2'])
+    return pd.concat([results, temp_results])
 
 
 class Model:
-    def __init__(self):
+    def __init__(self, x, y):
         self.auroc_mean = 0
         self.list_auroc_stratified = []
-        self.df_x = pd.DataFrame()
-        self.df_y = pd.DataFrame()
+        self.df_x = x
+        self.df_y = y
 
     def standarize_dataset(self, array_like_object):
         scaled_array = scaler.fit_transform(array_like_object)
@@ -48,7 +54,7 @@ class Model:
     def print_results(self):
         print('List of AUROC scores:', self.list_auroc_stratified)
         self.auroc_mean = np.mean(self.list_auroc_stratified)
-        print('\nMean AUROC:', round((self.auroc_mean) * 100, 3), '%')
+        print('\nMean AUROC:', round(self.auroc_mean * 100, 3), '%')
 
     def train_model(self, model_class):
         model = model_class
@@ -100,12 +106,8 @@ class Model:
 
 # ------------------------------------------------------------------------------------------------
 
-
+# for tests
 df = pd.read_csv("Loan_data_new_variables.csv")
-
-# train_model(LogisticRegression(max_iter=500), df_x, df_y)
-
-myModel = Model()
-myModel.df_x = df.drop('target', axis=1)
-myModel.df_y = df[['target']]
+myModel = Model(df.drop('target', axis=1), df[['target']])
 myModel.train_model(LogisticRegression(max_iter=500))
+compare_results('Logistic Regression', myModel.auroc_mean)
