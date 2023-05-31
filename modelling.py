@@ -18,6 +18,10 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 # standaryzacja
 from sklearn.preprocessing import StandardScaler
 
+#PCA
+from sklearn.decomposition import PCA
+from sklearn.decomposition import IncrementalPCA
+
 # modele
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -52,6 +56,19 @@ def standarize_dataset(array_like_object):
     return scaled_array
 
 
+def perform_pca(array_like_object):
+    global pca_final
+    scaled_array = standarize_dataset(array_like_object)
+    pca = PCA()
+    pca.fit(scaled_array)
+    var_cumu = np.cumsum(pca.explained_variance_ratio_)
+    for i in var_cumu:
+        if i >= 0.95:
+            pca_final = IncrementalPCA(n_components=i)
+            break
+    return pca_final.fit_transform(scaled_array)
+
+
 class Model:
     def __init__(self, x, y, model_class):
         self.auroc_mean = 0
@@ -59,7 +76,6 @@ class Model:
         self.df_x = x
         self.df_y = y
         self.model = model_class
-
 
     def print_results(self):
         print('List of AUROC scores:', self.list_auroc_stratified)
@@ -82,6 +98,21 @@ class Model:
                 roc_auc_score(y_test_fold, self.model.predict_proba(scaled_x_array_test_fold)[:, 1]))
         self.print_results()
 
+    def train_model_pca(self):
+        self.list_auroc_stratified = []
+        array_x = self.df_x.to_numpy()
+        array_y = self.df_y.to_numpy()
+        for train_index, test_index in skf.split(self.df_x, self.df_y):
+            x_train_fold, x_test_fold = array_x[train_index], array_x[test_index]
+            y_train_fold, y_test_fold = array_y[train_index], array_y[test_index]
+
+            scaled_x_array_train_fold = perform_pca(x_train_fold)
+            scaled_x_array_test_fold = perform_pca(x_test_fold)
+
+            self.model.fit(scaled_x_array_train_fold, np.ravel(y_train_fold))
+            self.list_auroc_stratified.append(
+                roc_auc_score(y_test_fold, self.model.predict_proba(scaled_x_array_test_fold)[:, 1]))
+        self.print_results()
 # __________________________________________________________________________________________________________
 
 
