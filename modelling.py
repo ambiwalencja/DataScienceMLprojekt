@@ -66,16 +66,16 @@ def perform_pca(array_like_object):
     pca = PCA()
     pca.fit(scaled_array)
     var_cumu = np.cumsum(pca.explained_variance_ratio_)
-    for i in var_cumu:
-        if i >= 0.95:
+    for i, sum in enumerate(var_cumu):
+        if sum >= 0.95:
             pca_final = IncrementalPCA(n_components=i)
             break
     return pca_final.fit_transform(scaled_array)
 
 
-def perform_smote(x,y):
+def perform_smote(x, y):
     sm = SMOTE(random_state=42)
-    return sm.fit_resample(x,y)
+    return sm.fit_resample(x, y)
 
 
 class Model:
@@ -91,7 +91,7 @@ class Model:
         self.auroc_mean = np.mean(self.list_auroc_stratified)
         print('\nMean AUROC:', round(self.auroc_mean * 100, 3), '%')
 
-    def train_model_kfold(self):
+    def train_model_kfold(self): # no smote
         array_x = self.df_x.to_numpy()
         array_y = self.df_y.to_numpy()
         for train_index, test_index in skf.split(self.df_x, self.df_y):
@@ -101,14 +101,12 @@ class Model:
             scaled_x_array_train_fold = standarize_dataset(x_train_fold)
             scaled_x_array_test_fold = standarize_dataset(x_test_fold)
 
-            # tutaj gdzieś smote
-
             self.model.fit(scaled_x_array_train_fold, np.ravel(y_train_fold))
             self.list_auroc_stratified.append(
                 roc_auc_score(y_test_fold, self.model.predict_proba(scaled_x_array_test_fold)[:, 1]))
         self.print_results()
 
-    def train_model_pca(self):
+    def train_model_pca_kfold(self): # no smote
         array_x = self.df_x.to_numpy()
         array_y = self.df_y.to_numpy()
         for train_index, test_index in skf.split(self.df_x, self.df_y):
@@ -139,11 +137,21 @@ class Model:
                                                      scoring='roc_auc', cv=skf) # albo: cv=ssp
         self.print_results()
 
+    def train_model_pca(self):
+        train_x, test_x, train_y, test_y = train_test_split(self.df_x, self.df_y, test_size=0.3, random_state=0,
+                                                            stratify=self.df_y['target'])
+        scaled_train_x_array = perform_pca(train_x)
+        train_x, train_y = perform_smote(scaled_train_x_array, train_y)
+        skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
+        self.list_auroc_stratified = cross_val_score(self.model, train_x, np.ravel(train_y),
+                                                     scoring='roc_auc', cv=skf)
+        self.print_results()
+
 # __________________________________________________________________________________________________________
 
 
 # for tests
 df = pd.read_csv("Loan_data_new_variables.csv")
 myModel = Model(df.drop('target', axis=1), df[['target']], LogisticRegression(max_iter=500))
-myModel.train_model()
+myModel.train_model_pca()
 print(compare_results('Logistic Regression', myModel.auroc_mean))
