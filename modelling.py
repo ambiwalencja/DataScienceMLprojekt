@@ -19,7 +19,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 # standaryzacja
 from sklearn.preprocessing import StandardScaler
 
-#PCA
+# PCA
 from sklearn.decomposition import PCA
 from sklearn.decomposition import IncrementalPCA
 
@@ -44,9 +44,9 @@ results = pd.DataFrame()
 
 
 def compare_results(method, score):
-    global results # trzeba to dodać, żeby interpretter wiedział, że results to jest zmienna globalna i żeby nie
-                    # próbował sie od niej odwołac jako do lokalneji żeby nie wyrzucał błędu
-                    # "UnboundLocalError: local variable 'results' referenced before assignment
+    global results  # trzeba to dodać, żeby interpretter wiedział, że results to jest zmienna globalna i żeby nie
+    # próbował sie od niej odwołac jako do lokalneji żeby nie wyrzucał błędu
+    # "UnboundLocalError: local variable 'results' referenced before assignment
 
     temp_results = pd.DataFrame({'Method': method,
                                  'ROC AUC score': round(score, 3)},
@@ -91,7 +91,7 @@ class Model:
         self.auroc_mean = np.mean(self.list_auroc_stratified)
         print('\nMean AUROC:', round(self.auroc_mean * 100, 3), '%')
 
-    def train_model_kfold(self): # no smote
+    def train_model_kfold(self):  # no smote
         array_x = self.df_x.to_numpy()
         array_y = self.df_y.to_numpy()
         for train_index, test_index in skf.split(self.df_x, self.df_y):
@@ -106,7 +106,7 @@ class Model:
                 roc_auc_score(y_test_fold, self.model.predict_proba(scaled_x_array_test_fold)[:, 1]))
         self.print_results()
 
-    def train_model_pca_kfold(self): # no smote
+    def train_model_pca_kfold(self):  # no smote
         array_x = self.df_x.to_numpy()
         array_y = self.df_y.to_numpy()
         for train_index, test_index in skf.split(self.df_x, self.df_y):
@@ -134,7 +134,7 @@ class Model:
                                                      # , for example using ravel().
                                                      #   y = column_or_1d(y, warn=True)
                                                      # dlatego zamiast train_y jest np.ravel(train_y)
-                                                     scoring='roc_auc', cv=skf) # albo: cv=ssp
+                                                     scoring='roc_auc', cv=skf)  # albo: cv=ssp
         self.print_results()
 
     def train_model_pca(self):
@@ -147,11 +147,29 @@ class Model:
                                                      scoring='roc_auc', cv=skf)
         self.print_results()
 
+    def train_model_grid_search(self, grid):
+        train_x, test_x, train_y, test_y = train_test_split(self.df_x, self.df_y, random_state=0, stratify=self.df_y)
+        scaled_train_x_array = standarize_dataset(train_x)
+        train_x, train_y = perform_smote(scaled_train_x_array, train_y)
+        skf = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+        grid_search = GridSearchCV(estimator=self.model, param_grid=grid, n_jobs=-1, cv=skf,
+                                   scoring='roc_auc', error_score=0)
+        grid_result = grid_search.fit(train_x, np.ravel(train_y))
+
+        print(f"Best: {grid_result.best_score_} using {grid_result.best_params_}")
+        means = grid_result.cv_results_['mean_test_score']
+        stds = grid_result.cv_results_['std_test_score']
+        params = grid_result.cv_results_['params']
+        for mean, stdev, param in zip(means, stds, params):
+            print("%f (%f) with: %r" % (mean, stdev, param))
+
 # __________________________________________________________________________________________________________
 
 
 # for tests
 df = pd.read_csv("Loan_data_new_variables.csv")
-myModel = Model(df.drop('target', axis=1), df[['target']], LogisticRegression(max_iter=500))
-myModel.train_model_pca()
-print(compare_results('Logistic Regression', myModel.auroc_mean))
+myModel = Model(df.drop('target', axis=1), df[['target']], LogisticRegression(max_iter=1000))
+# myModel.train_model_pca()
+myModel.train_model_grid_search({'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
+                                 'C': [100, 10, 1.0, 0.1, 0.01]})
+# print(compare_results('Logistic Regression', myModel.auroc_mean))
