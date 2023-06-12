@@ -84,6 +84,15 @@ def create_numeric_column_list(df):
     return numeric_column_list
 
 
+def display_analysis(df, column_list):
+    for column in column_list:
+        print(column.upper())
+        print(df[column].describe().T)
+        outliers(df, column)
+        plots(df, column)
+        compare_means(df, column)
+        print('\n\n')
+
 # information source regarding T-test and how the variances are treated as equal:
 # "Applied Linear Statistical Models" by Michael H. Kutner, Christopher J. Nachtsheim, John Neter, and William Li.
 # In the book, they suggest that if the ratio of the larger variance to the smaller variance is no more than 4:1
