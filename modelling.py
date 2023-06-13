@@ -1,3 +1,5 @@
+# remember to start with pip install of packages
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -45,7 +47,7 @@ results = pd.DataFrame()
 
 def compare_results(method, score):
     global results  # trzeba to dodać, żeby interpretter wiedział, że results to jest zmienna globalna i żeby nie
-    # próbował sie od niej odwołac jako do lokalneji żeby nie wyrzucał błędu
+    # próbował sie od niej odwołac jako do lokalnei żeby nie wyrzucał błędu
     # "UnboundLocalError: local variable 'results' referenced before assignment
 
     temp_results = pd.DataFrame({'Method': method,
@@ -61,13 +63,14 @@ def standarize_dataset(array_like_object):
 
 
 def perform_pca(array_like_object):
-    global pca_final
+    # global pca_final
     scaled_array = standarize_dataset(array_like_object)
     pca = PCA()
     pca.fit(scaled_array)
     var_cumu = np.cumsum(pca.explained_variance_ratio_)
-    for i, sum in enumerate(var_cumu):
-        if sum >= 0.95:
+    pca_final = IncrementalPCA(n_components=1)
+    for i, var_sum in enumerate(var_cumu):
+        if var_sum >= 0.95:
             pca_final = IncrementalPCA(n_components=i)
             break
     return pca_final.fit_transform(scaled_array)
@@ -158,18 +161,20 @@ class Model:
 
         print(f"Best: {grid_result.best_score_} using {grid_result.best_params_}")
         means = grid_result.cv_results_['mean_test_score']
-        stds = grid_result.cv_results_['std_test_score']
+        # stds = grid_result.cv_results_['std_test_score']
         params = grid_result.cv_results_['params']
-        for mean, stdev, param in zip(means, stds, params):
-            print("%f (%f) with: %r" % (mean, stdev, param))
+        # for mn, std, param in zip(means, stds, params):
+        #     print("%f (%f) with: %r" % (mn, std, param))
+        for mn, param in zip(means, params):
+            print(f"{mean} with:{param}")
 
 # __________________________________________________________________________________________________________
 
 
-# for tests
-df = pd.read_csv("Loan_data_new_variables.csv")
-myModel = Model(df.drop('target', axis=1), df[['target']], LogisticRegression(max_iter=1000))
-# myModel.train_model_pca()
-myModel.train_model_grid_search({'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
-                                 'C': [100, 10, 1.0, 0.1, 0.01]})
-# print(compare_results('Logistic Regression', myModel.auroc_mean))
+# # for tests
+# df = pd.read_csv("Loan_data_new_variables.csv")
+# myModel = Model(df.drop('target', axis=1), df[['target']], LogisticRegression(max_iter=1000))
+# # myModel.train_model_pca()
+# myModel.train_model_grid_search({'solver': ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'],
+#                                  'C': [100, 10, 1.0, 0.1, 0.01]})
+# # print(compare_results('Logistic Regression', myModel.auroc_mean))
