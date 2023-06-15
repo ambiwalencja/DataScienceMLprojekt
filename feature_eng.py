@@ -33,4 +33,11 @@ def log_plus_1_transform(df, column_list):
         logarithm(df, column)
 
 
+def create_binary_variables_with_median(df, column_list):
+    """Create binary variables from the list of given variables, with median as a threshold"""
+    for column in column_list:
+        name = column+'_bin'
+        df[name] = (df[column] >= df[column].median()).astype(int)
+
+
 # print(find_outliers_method_normal_distribution.__doc__)
