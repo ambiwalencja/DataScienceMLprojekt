@@ -25,6 +25,7 @@ def replace_outliers(df, column_list, column_groupby_list):
 
 
 def log_plus_1_transform(df, column_list):
+    """Perform log transform (plus 1 to get rid of negative values) on given list of variables"""
     def logarithm(df_, column_):
         name = column_+"_log+1"
         df_[name] = (df_[column_]+1).transform(np.log)
@@ -39,5 +40,11 @@ def create_binary_variables_with_median(df, column_list):
         name = column+'_bin'
         df[name] = (df[column] >= df[column].median()).astype(int)
 
+
+def create_binary_variables_with_threshold(df, column_list, threshold):
+    """Create binary variables from the list of given variables, with a threshold given as parameter"""
+    for column in column_list:
+        name = column+'_bin'
+        df[name] = (df[column] >= threshold).astype(int)
 
 # print(find_outliers_method_normal_distribution.__doc__)
